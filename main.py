@@ -4,32 +4,51 @@ import numpy as np
 from lego_processor import LegoProcessor
 
 def main():
-    print("Initializing LEGO Generation System...")
-    print("OpenCV Version:", cv2.__version__)
+    print("Initializing LEGO Generation System...", flush=True)
+    print(f"OpenCV Version: {cv2.__version__}", flush=True)
     
     # Initialize Camera (Task 1)
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        print("Error: Could not open camera.")
-        sys.exit(1)
+        print("Error: Could not open camera. Switching to Test Mode (Static Image).", file=sys.stderr)
+        # Create a dummy image for testing if camera fails
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        # Draw something
+        cv2.rectangle(frame, (100, 100), (300, 300), (0, 0, 255), -1)
+        cv2.putText(frame, "No Camera", (150, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        use_camera = False
+    else:
+        use_camera = True
         
     processor = LegoProcessor()
     
-    print("\nControls:")
-    print(" 'q' - Quit application")
-    print(" 's' - Save current frame snapshot")
-    print(" '2' - Generate Task 2 (1x1 bricks, 3 colors) from current frame")
-    print(" '3' - Generate Task 3 (Multi-size bricks, multi-color) from current frame")
-    print(" '4' - Toggle Real-time LEGO mode (Task 4)")
+    print("\nControls:", flush=True)
+    print(" 'q' - Quit application", flush=True)
+    print(" 's' - Save current frame snapshot", flush=True)
+    print(" '2' - Generate Task 2 (1x1 bricks, 3 colors) from current frame", flush=True)
+    print(" '3' - Generate Task 3 (Multi-size bricks, multi-color) from current frame", flush=True)
+    print(" '4' - Toggle Real-time LEGO mode (Task 4)", flush=True)
     
     real_time_mode = False
     
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: Can't receive frame (stream end?). Exiting ...")
-            break
-            
+        if use_camera:
+            ret, frame = cap.read()
+            if not ret:
+                print("Error: Can't receive frame (stream end?). Exiting ...", file=sys.stderr)
+                break
+        else:
+            # Create a dynamic dummy image for testing
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.rectangle(frame, (100, 100), (300, 300), (0, 0, 255), -1)
+            cv2.circle(frame, (320, 240), 50, (0, 255, 0), -1)
+            # Add some movement or noise to simulate video?
+            import time
+            t = time.time()
+            cv2.putText(frame, f"Time: {t:.2f}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            # Add a slight delay to mimic 30fps
+            cv2.waitKey(30)
+
         # Display original frame (Task 1)
         cv2.imshow('Camera Feed (Task 1)', frame)
         

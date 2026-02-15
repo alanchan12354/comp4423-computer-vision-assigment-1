@@ -64,6 +64,49 @@ class LegoProcessor:
         # To make it look like LEGO, we can scale up and add a grid or "stud"
         return self._render_bricks(quantized, size=size)
 
+    def _draw_stud(self, canvas, cx, cy, size, color):
+        """
+        Draws a single LEGO stud with 3D shading effects.
+        """
+        r = int(size * 0.35)
+        if r < 1: r = 1
+        
+        # Colors
+        # Ensure color is a list of ints
+        base_c = [int(c) for c in color]
+        
+        # Calculate shadow/light colors (clamped)
+        shadow_c = [max(0, int(c * 0.6)) for c in base_c]
+        dark_c   = [max(0, int(c * 0.8)) for c in base_c]
+        light_c  = [min(255, int(c * 1.4)) for c in base_c]
+        
+        # 1. Drop Shadow (on the plate/brick below)
+        # Shifted bottom-right
+        offset = max(1, int(size * 0.08))
+        cv2.circle(canvas, (cx + offset, cy + offset), r, tuple(shadow_c), -1)
+        
+        # 2. Main Stud Body
+        cv2.circle(canvas, (cx, cy), r, tuple(base_c), -1)
+        
+        # 3. 3D Bevel/Highlight
+        # Using arcs to simulate light coming from Top-Left
+        
+        # Highlight (Top-Left 135 to 315 degrees? No, OpenCV angles: 0=Right, 90=Down)
+        # Top-Left is -135 or 225.
+        # We want an arc from approx 180 (Left) to 270 (Top) centered at Top-Left.
+        # Let's draw a lighter crescent on top-left
+        cv2.ellipse(canvas, (cx, cy), (r, r), 0, 180, 270, tuple(light_c), max(1, int(size*0.1)))
+        
+        # Shadow (Bottom-Right)
+        # Arc from 0 (Right) to 90 (Down)
+        cv2.ellipse(canvas, (cx, cy), (r, r), 0, 0, 90, tuple(dark_c), max(1, int(size*0.1)))
+        
+        # Extra Specular Highlight dot
+        spec_r = max(1, int(r * 0.3))
+        spec_x = cx - int(r * 0.4)
+        spec_y = cy - int(r * 0.4)
+        cv2.circle(canvas, (spec_x, spec_y), spec_r, (255, 255, 255), -1, cv2.LINE_AA)
+
     def _render_bricks(self, brick_map, size=20):
         """
         Render a pixel map as LEGO bricks.
@@ -79,22 +122,25 @@ class LegoProcessor:
             for x in range(w):
                 color = brick_map[y, x].tolist()
                 
-                # Draw the main brick body
-                pt1 = (x * size, y * size)
-                pt2 = ((x + 1) * size, (y + 1) * size)
-                cv2.rectangle(canvas, pt1, pt2, color, -1)
+                # Coordinates
+                x0 = x * size
+                y0 = y * size
+                x1 = (x + 1) * size
+                y1 = (y + 1) * size
                 
-                # Draw a border
-                cv2.rectangle(canvas, pt1, pt2, (int(c*0.8) for c in color), 1)
+                # 1. Draw Brick Plate
+                cv2.rectangle(canvas, (x0, y0), (x1, y1), color, -1)
+                
+                # 2. Draw Brick Border (Grid effect)
+                # Darken the border slightly or use black for contrast
+                # Reference image has defined edges.
+                border_color = tuple([max(0, int(c * 0.7)) for c in color])
+                cv2.rectangle(canvas, (x0, y0), (x1, y1), border_color, 1)
 
-                # Draw a stud on top (circle)
-                center = (x * size + size // 2, y * size + size // 2)
-                radius = int(size * 0.35)
-                # Stud color slightly lighter/shadowed to give 3D effect
-                stud_color = color # Simplify for now
-                cv2.circle(canvas, center, radius, stud_color, -1)
-                # Add shadow to stud
-                cv2.circle(canvas, center, radius, (int(c*0.8) for c in color), 1)
+                # 3. Draw Stud
+                cx = x0 + size // 2
+                cy = y0 + size // 2
+                self._draw_stud(canvas, cx, cy, size, color)
 
         return canvas
 
@@ -191,19 +237,19 @@ class LegoProcessor:
             w_px = bw * size
             h_px = bh * size
             
-            # Brick body
+            # 1. Brick body
             cv2.rectangle(canvas, (x_px, y_px), (x_px + w_px, y_px + h_px), color, -1)
-            # Border
-            cv2.rectangle(canvas, (x_px, y_px), (x_px + w_px, y_px + h_px), (0,0,0), 1)
             
-            # Draw studs
+            # 2. Border
+            border_color = tuple([max(0, int(c * 0.7)) for c in color])
+            cv2.rectangle(canvas, (x_px, y_px), (x_px + w_px, y_px + h_px), border_color, 1)
+            
+            # 3. Draw studs
             for i in range(bw):
                 for j in range(bh):
                    cx = x_px + i * size + size // 2
                    cy = y_px + j * size + size // 2
-                   radius = int(size * 0.35)
-                   cv2.circle(canvas, (cx, cy), radius, [c*0.9 for c in color], -1)
-                   cv2.circle(canvas, (cx, cy), radius, [c*0.7 for c in color], 1)
+                   self._draw_stud(canvas, cx, cy, size, color)
 
         return canvas, stats
 

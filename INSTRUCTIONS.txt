@@ -1,12 +1,15 @@
 # How to Run
 
 1.  **Install Prerequisites**:
-    Open a terminal and run:
+    Open a terminal and run the following commands to set up a virtual environment (avoids system conflicts):
     ```bash
+    python3 -m venv venv
+    source venv/bin/activate
     pip install -r requirements.txt
     ```
 
 2.  **Run the Application**:
+    Make sure your virtual environment is activated (`source venv/bin/activate`), then run:
     ```bash
     python main.py
     ```
